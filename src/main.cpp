@@ -1,124 +1,51 @@
-#include <Arduino.h>
-
-#include <Adafruit_Sensor.h>
-#include <DHT.h>
-#include <DHT_U.h>
-#include "Adafruit_FreeTouch.h"
+#include <Adafruit_FreeTouch.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <utility>
+#include <Arduino.h>
+#include <DHT.h>
 
-#include "Fonts/FreeSans12pt7b.h"
+#include "Display.h"
+#include "SensorManager.h"
 
-#define DHT_PIN 2
+
+// digital pin of the DS18B20 sensor
+#define DS_PIN D6
+
+// digital pin of the DHT sensor
+#define DHT_PIN D2
+
+// the used dht sensor type
 #define DHT_TYPE DHT11
 
+// width/height of used OLED
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 
-/// See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+// Address of OLED
 #define SCREEN_ADDRESS 0x3C
 
 // the threshold value at which the touch pin should get triggered
 #define TOUCH_THRESHOLD 750
+
+// the used QTouch pin
 #define TOUCH_PIN A1
 
 // the time in ms which the OLED should show temp+humidity
 #define TIME_SCREEN_ON 10000
 
-DHT_Unified dht(DHT_PIN, DHT_TYPE);
 
 auto touch = Adafruit_FreeTouch(TOUCH_PIN, OVERSAMPLE_4, RESISTOR_50K, FREQ_MODE_NONE);
 
-Adafruit_SSD1306 *display;
+SensorManager *sensors;
 
-unsigned long sensorDelayMS = 0;
-unsigned long offAfter = 0;
-unsigned long nextMeasurement = 0;
+Display *display;
 
-float temp = -1;
-float hum = -1;
+// the timestamp (ms) of the last registered touch event
+unsigned long lastTouchTime = 0;
 
-String getTempString() {
-    return String(temp, 1);
-}
-
-String getHumString() {
-    return String(hum, 0);
-}
-
-std::pair<unsigned short, unsigned short> getBB(const String &str) {
-    int16_t x1, y1;
-    unsigned short w, h;
-    // Get cursor position after the number
-    display->getTextBounds(str, 0, 0, &x1, &y1, &w, &h);
-    w += x1;
-
-    return {w, h};
-}
-
-short calculateYOffset() {
-    const auto measureStr = getTempString() + getHumString() + " C%";
-
-    const auto [w, h] = getBB(measureStr);
-
-    return static_cast<short>((SCREEN_HEIGHT - h) / 2 + h);
-}
-
-void printTemperature(const short circleSize) {
-    const short x = display->getCursorX();
-    const short y = display->getCursorY();
-    const auto tempStr = getTempString();
-
-    display->print(tempStr);
-
-    const auto [w, h] = getBB(tempStr);
-
-    // Manually draw a "Degree" circle relative to the font size
-    // For 9pt font, a 3x3 or 4x4 circle usually looks best
-    const auto circleX = static_cast<short>(x + w + 2 + circleSize);
-    const auto circleY = static_cast<short>(y - h + circleSize);
-    display->drawCircle(circleX, circleY, circleSize, WHITE);
-
-    display->setCursor(static_cast<short>(circleX + 2), y);
-    display->print("C");
-}
-
-void printRightAlignedHumidity() {
-    const String humStr = getHumString() + "%";
-
-    const auto [w, h] = getBB(humStr);
-
-    display->setCursor(static_cast<short>(display->width() - w), display->getCursorY());
-    display->print(humStr);
-}
-
-void readSensor() {
-    sensors_event_t tempEvent;
-    sensors_event_t humEvent;
-    dht.temperature().getEvent(&tempEvent);
-    dht.humidity().getEvent(&humEvent);
-
-    if (isnan(tempEvent.temperature)) {
-        Serial.println(F("Error reading temperature!"));
-    } else {
-        temp = tempEvent.temperature;
-    }
-
-    if (isnan(humEvent.relative_humidity)) {
-        Serial.println(F("Error reading humidity!"));
-    } else {
-        hum = humEvent.relative_humidity;
-    }
-}
 
 void setup() {
     Serial.begin(9600);
-    dht.begin();
-
-    sensor_t sensor;
-    dht.humidity().getSensor(&sensor);
-    sensorDelayMS = sensor.min_delay / 1000;
 
     if (!touch.begin()) {
         // ReSharper disable once CppDFAEndlessLoop
@@ -128,41 +55,30 @@ void setup() {
         }
     }
 
-    display = new Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT);
+    sensors = new SensorManager(DS_PIN, DHT_PIN, DHT_TYPE);
 
     delay(500);
-
-    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    if(!display->begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-        // ReSharper disable once CppDFAEndlessLoop
-        for(;;) {
-            Serial.println("SSD1306 allocation failed");
-            delay(1000);
-        }
-    }
-
-    display->setFont(&FreeSans12pt7b);
-    display->setTextWrap(false);
-    display->setTextSize(1);
-    display->setTextColor(WHITE);
+    display = new Display(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_ADDRESS);
 }
 
 void loop() {
     display->clearDisplay();
 
-    if (offAfter > millis()) {
-        if (nextMeasurement < millis()) {
-            nextMeasurement = millis() + sensorDelayMS;
-            readSensor();
-        }
+    unsigned long currentMillis = millis();
 
-        display->setCursor(0, calculateYOffset());
-        printTemperature(2);
-        printRightAlignedHumidity();
+    // show temp/hum if screen should still be on
+    if (currentMillis - lastTouchTime < TIME_SCREEN_ON) {
+        const float temp = sensors->getTemperature();
+        const float hum = sensors->getHumidity();
+
+        display->setCursor(0, display->calculateYOffset(temp, hum));
+        display->printTemperature(temp, 2);
+        display->printRightAlignedHumidity(hum);
     }
 
+    // touch registered?
     if (touch.measure() > TOUCH_THRESHOLD) {
-        offAfter = millis() + TIME_SCREEN_ON;
+        lastTouchTime = currentMillis;
     }
 
     display->display();
