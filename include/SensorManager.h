@@ -3,6 +3,7 @@
 #include "DallasTemperature.h"
 #include "DHT_U.h"
 #include "OneWire.h"
+#include <FreeRTOS_SAMD21.h>
 
 
 /**
@@ -18,6 +19,9 @@ class SensorManager {
     // Dallas Temperature sensor instance
     DallasTemperature ds;
 
+    // Handle for the background sensor reading task
+    TaskHandle_t sensorTaskHandle = nullptr;
+
     // Minimum delay required between DHT reads
     unsigned long delayMs;
 
@@ -27,8 +31,19 @@ class SensorManager {
     // Last successfully cached temperature value
     float temp = -1;
 
+    // Temperature offset to add to the read temperature
+    float tempOffset = 0;
+
     // Last successfully cached humidity value
     float hum = -1;
+
+    // Humidity offset to add to the read humidity
+    float humOffset = 0;
+
+    /**
+     * A loop that performs a new measurement if enough time has passed.
+     */
+    static void readTask(void *params);
 
 public:
     /**
@@ -36,25 +51,22 @@ public:
      * @param dsPin The GPIO pin connected to the DS18B20 data line.
      * @param dhtPin The GPIO pin connected to the DHT sensor data line.
      * @param dhtType The DHT model type (e.g., DHT11, DHT22).
+     * @param tempOffset Temperature offset to add to the read temperature
+     * @param humOffset Humidity offset to add to the read humidity
      */
-    SensorManager(byte dsPin, byte dhtPin, byte dhtType);
-
-    /**
-     * Performs a new measurement if enough time has passed.
-     */
-    void read();
+    SensorManager(byte dsPin, byte dhtPin, byte dhtType, float tempOffset, float humOffset);
 
     /**
      * Retrieves the most recent temperature reading.
      * @return Temperature in Celsius.
      */
-    float getTemperature();
+    [[nodiscard]] float getTemperature() const;
 
     /**
      * Retrieves the most recent humidity reading.
      * @return Relative humidity percentage.
      */
-    float getHumidity();
+    [[nodiscard]] float getHumidity() const;
 };
 
 

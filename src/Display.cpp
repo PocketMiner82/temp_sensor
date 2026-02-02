@@ -10,6 +10,7 @@ Display::Display(const short screenWidth, const short screenHeight, const byte s
         // ReSharper disable once CppDFAEndlessLoop
         for(;;) {
             Serial.println("SSD1306 allocation failed");
+            Serial.flush();
             delay(1000);
         }
     }
