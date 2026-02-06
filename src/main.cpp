@@ -12,13 +12,13 @@
 #define DS_PIN D6
 
 // digital pin of the DHT sensor
-#define DHT_PIN D2
+#define DHT_PIN D3
 
 // the used PIR sensor pin
-#define PIR_PIN D7
+#define PIR_PIN D10
 
 // the used photoresistor pin
-#define PR_PIN A8
+#define PR_PIN A0
 
 // the used dht sensor type
 #define DHT_TYPE DHT11
