@@ -14,6 +14,12 @@
 // digital pin of the DHT sensor
 #define DHT_PIN D2
 
+// the used PIR sensor pin
+#define PIR_PIN D7
+
+// the used photoresistor pin
+#define PR_PIN A8
+
 // the used dht sensor type
 #define DHT_TYPE DHT11
 
@@ -38,14 +44,8 @@
 // the threshold at which to undim the screen (0-4095)
 #define SCREEN_UNDIM_THRESHOLD 3072
 
-// the used PIR sensor pin
-#define PIR_PIN D1
-
-// the used photoresistor pin
-#define PR_PIN A0
-
 // the time in ms which the OLED should show temp+humidity
-#define TIME_SCREEN_ON 10000
+#define TIME_SCREEN_ON 5000
 
 // temperature offset (for calibration)
 #define TEMP_OFFSET (-1)
@@ -123,12 +123,13 @@ void setup() {
     // ADC supports 12-bit resolution
     analogReadResolution(12);
 
-    // wait for pin to go low
-    while (digitalRead(PIR_PIN) == HIGH) {}
-
     sensors = new SensorManager(DS_PIN, DHT_PIN, DHT_TYPE, TEMP_OFFSET, HUM_OFFSET);
 
-    delay(500);
+    // wait for pin to go low
+    do {
+        delay(100);
+    } while (digitalRead(PIR_PIN) == HIGH);
+
     display = new Display(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_ADDRESS);
 
     xTaskCreate(displayTask,
