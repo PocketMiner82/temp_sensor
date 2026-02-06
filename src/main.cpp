@@ -26,11 +26,23 @@
 // Address of OLED
 #define SCREEN_ADDRESS 0x3C
 
-// the threshold value at which the touch pin should get triggered
-#define TOUCH_THRESHOLD 750
+// the threshold at which the screen should be off by default (0-4095)
+#define SCREEN_OFF_THRESHOLD 1536
 
-// the used QTouch pin
-#define TOUCH_PIN A1
+// the threshold at which the screen should always be on (0-4095)
+#define SCREEN_ALWAYS_ON_THRESHOLD 2048
+
+// the threshold at which to dim the screen (0-4095)
+#define SCREEN_DIM_THRESHOLD 2560
+
+// the threshold at which to undim the screen (0-4095)
+#define SCREEN_UNDIM_THRESHOLD 3072
+
+// the used PIR sensor pin
+#define PIR_PIN D1
+
+// the used photoresistor pin
+#define PR_PIN A0
 
 // the time in ms which the OLED should show temp+humidity
 #define TIME_SCREEN_ON 10000
@@ -42,8 +54,6 @@
 #define HUM_OFFSET (-5)
 
 
-auto touch = Adafruit_FreeTouch(TOUCH_PIN, OVERSAMPLE_4, RESISTOR_50K, FREQ_MODE_NONE);
-
 SensorManager *sensors;
 
 Display *display;
@@ -52,14 +62,43 @@ Display *display;
 unsigned long lastTouchTime = 0;
 
 
-[[noreturn]] void displayTask(void *params) {
+[[noreturn]] void displayTask([[maybe_unused]] void *params) {
+    // make sure screen is off initially
+    lastTouchTime = 0 - TIME_SCREEN_ON;
+
+    bool dimmed = false;
+    bool alwaysOn = false;
+
     while (true) {
         display->clearDisplay();
 
-        unsigned long currentMillis = millis();
+        const unsigned long currentMillis = millis();
+        const unsigned long prValue = analogRead(PR_PIN);
+
+        // motion detected?
+        if (digitalRead(PIR_PIN) == HIGH) {
+            lastTouchTime = currentMillis;
+        }
+
+        if (prValue < SCREEN_OFF_THRESHOLD && alwaysOn) {
+            // only allow screen to be on when motion detected
+            alwaysOn = false;
+        } else if (prValue > SCREEN_ALWAYS_ON_THRESHOLD && !alwaysOn) {
+            // leave screen on if above threshold
+            alwaysOn = true;
+        }
+
+        // dim screen if below threshold
+        if (prValue < SCREEN_DIM_THRESHOLD && !dimmed) {
+            dimmed = true;
+            display->dim(true);
+        } else if (prValue > SCREEN_UNDIM_THRESHOLD && dimmed) {
+            dimmed = false;
+            display->dim(false);
+        }
 
         // show temp/hum if screen should still be on
-        if (currentMillis - lastTouchTime < TIME_SCREEN_ON) {
+        if (currentMillis - lastTouchTime < TIME_SCREEN_ON || alwaysOn) {
             const float temp = sensors->getTemperature();
             const float hum = sensors->getHumidity();
 
@@ -68,29 +107,24 @@ unsigned long lastTouchTime = 0;
             display->printRightAlignedHumidity(hum);
         }
 
-        // touch registered?
-        if (touch.measure() > TOUCH_THRESHOLD) {
-            lastTouchTime = currentMillis;
-        }
-
         display->display();
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
+    // ReSharper disable once CppDFAUnreachableCode
     vTaskDelete(nullptr);
 }
 
 void setup() {
     Serial.begin(9600);
 
-    if (!touch.begin()) {
-        // ReSharper disable once CppDFAEndlessLoop
-        for(;;) {
-            Serial.println("Failed to begin qt on pin A1");
-            Serial.flush();
-            delay(1000);
-        }
-    }
+    pinMode(PIR_PIN, INPUT);
+
+    // ADC supports 12-bit resolution
+    analogReadResolution(12);
+
+    // wait for pin to go low
+    while (digitalRead(PIR_PIN) == HIGH) {}
 
     sensors = new SensorManager(DS_PIN, DHT_PIN, DHT_TYPE, TEMP_OFFSET, HUM_OFFSET);
 

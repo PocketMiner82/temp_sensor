@@ -1,8 +1,11 @@
 #include "SensorManager.h"
+
 #include <FreeRTOS_SAMD21.h>
 
+#include "MovingMedianCollection.h"
+
 SensorManager::SensorManager(const byte dsPin, const byte dhtPin, const byte dhtType,
-    float tempOffset, float humOffset) :
+                             const float tempOffset, const float humOffset) :
         dht(dhtPin, dhtType), oneWire(dsPin), ds(&oneWire), tempOffset(tempOffset), humOffset(humOffset) {
     dht.begin();
     sensor_t sensor;
@@ -15,7 +18,7 @@ SensorManager::SensorManager(const byte dsPin, const byte dhtPin, const byte dht
     xTaskCreate(
         readTask,
         "readTask",
-        512,
+        1024,
         this,
         tskIDLE_PRIORITY + 1,
         &sensorTaskHandle
@@ -23,30 +26,39 @@ SensorManager::SensorManager(const byte dsPin, const byte dhtPin, const byte dht
 }
 
 void SensorManager::readTask(void *params) {
+    const auto instance = static_cast<SensorManager*>(params);
+
+    // last humidities
+    MovingMedianCollection<float, 7> humidities;
+
+    // last temps
+    MovingMedianCollection<float, 7> temps;
+
+    DeviceAddress dsAddress;
+    instance->ds.getAddress(dsAddress, 0);
+
     while (true) {
-        const auto instance = static_cast<SensorManager*>(params);
-
-        // const unsigned long currentMillis = millis();
-        // if (currentMillis - instance->lastMeasurement < instance->delayMs) {
-        //     return;
-        // }
-        // instance->lastMeasurement = currentMillis;
-
         sensors_event_t humEvent;
         instance->dht.humidity().getEvent(&humEvent);
         if (isnan(humEvent.relative_humidity)) {
             Serial.println("Error reading humidity!");
             Serial.flush();
         } else {
-            instance->hum = humEvent.relative_humidity;
+            humidities.add(humEvent.relative_humidity);
+            instance->hum = humidities.get_median();
         }
 
-        instance->ds.requestTemperaturesByIndex(0);
-        if (isnan(instance->ds.getTempCByIndex(0))) {
+        instance->ds.requestTemperaturesByAddress(dsAddress);
+        float newTemp = instance->ds.getTempC(dsAddress);
+        if (newTemp <= DEVICE_DISCONNECTED_C) {
             Serial.println("Error reading temperature!");
             Serial.flush();
+
+            // try to get new address
+            instance->ds.getAddress(dsAddress, 0);
         } else {
-            instance->temp = instance->ds.getTempCByIndex(0);
+            temps.add(newTemp);
+            instance->temp = temps.get_median();
         }
 
         vTaskDelay(pdMS_TO_TICKS(instance->delayMs));
