@@ -9,7 +9,7 @@
 
 
 // digital pin of the DS18B20 sensor
-#define DS_PIN D6
+#define DS_PIN D2
 
 // digital pin of the DHT sensor
 #define DHT_PIN D3
@@ -18,7 +18,7 @@
 #define PIR_PIN D10
 
 // the used photoresistor pin
-#define PR_PIN A0
+#define PR_PIN A9
 
 // the used dht sensor type
 #define DHT_TYPE DHT11
