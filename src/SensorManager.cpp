@@ -28,10 +28,10 @@ void SensorManager::readTask(void *params) {
     const auto instance = static_cast<SensorManager*>(params);
 
     // last humidities
-    MovingMedianCollection<float, 7> humidities;
+    MovingMedianCollection<float, 5> humidities;
 
     // last temps
-    MovingMedianCollection<float, 7> temps;
+    MovingMedianCollection<float, 5> temps;
 
     DeviceAddress dsAddress;
     instance->ds.getAddress(dsAddress, 0);
@@ -60,7 +60,7 @@ void SensorManager::readTask(void *params) {
             instance->temp = temps.get_median();
         }
 
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(pdMS_TO_TICKS(7500));
     }
 
     // Have to call this or the system crashes when you reach the end bracket and then get scheduled.
