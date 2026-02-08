@@ -58,20 +58,19 @@ SensorManager *sensors;
 
 Display *display;
 
-// the timestamp (ms) of the last registered touch event
-unsigned long lastTouchTime = 0;
-
 
 [[noreturn]] void displayTask([[maybe_unused]] void *params) {
-    // make sure screen is off initially
-    lastTouchTime = 0 - TIME_SCREEN_ON;
+    // the timestamp (ms) of the last registered touch event. also make sure screen is off initially
+    unsigned long lastTouchTime = 0 - TIME_SCREEN_ON;
 
     bool dimmed = false;
     bool alwaysOn = false;
+    bool off = false;
+
+    float oldTemp = -999.0f;
+    float oldHum = -999.0f;
 
     while (true) {
-        display->clearDisplay();
-
         const unsigned long currentMillis = millis();
         const unsigned long prValue = analogRead(PR_PIN);
 
@@ -99,16 +98,30 @@ unsigned long lastTouchTime = 0;
 
         // show temp/hum if screen should still be on
         if (currentMillis - lastTouchTime < TIME_SCREEN_ON || alwaysOn) {
+            off = false;
+
             const float temp = sensors->getTemperature();
             const float hum = sensors->getHumidity();
 
-            display->setCursor(0, display->calculateYOffset(temp, hum));
-            display->printTemperature(temp, 2);
-            display->printRightAlignedHumidity(hum);
+            if (abs(oldTemp - temp) > 0.01f || abs(oldHum - hum) > 0.01f) {
+                oldTemp = temp;
+                oldHum = hum;
+
+                display->clearDisplay();
+                display->setCursor(0, display->calculateYOffset(temp, hum));
+                display->printTemperature(temp, 2);
+                display->printRightAlignedHumidity(hum);
+                display->display();
+            }
+        } else if (!off) {
+            oldTemp = -999.0f;
+            oldHum = -999.0f;
+            display->clearDisplay();
+            display->display();
+            off = true;
         }
 
-        display->display();
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 
     // ReSharper disable once CppDFAUnreachableCode

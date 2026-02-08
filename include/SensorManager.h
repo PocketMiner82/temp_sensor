@@ -22,20 +22,17 @@ class SensorManager {
     // Handle for the background sensor reading task
     TaskHandle_t sensorTaskHandle = nullptr;
 
-    // Minimum delay required between DHT reads
-    unsigned long delayMs;
-
     // Timestamp (ms) when the last read happened
     unsigned long lastMeasurement = 0;
 
     // Last successfully cached temperature value
-    float temp = -1;
+    volatile float temp = -1;
 
     // Temperature offset to add to the read temperature
     float tempOffset = 0;
 
     // Last successfully cached humidity value
-    float hum = -1;
+    volatile float hum = -1;
 
     // Humidity offset to add to the read humidity
     float humOffset = 0;

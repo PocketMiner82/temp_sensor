@@ -10,7 +10,6 @@ SensorManager::SensorManager(const byte dsPin, const byte dhtPin, const byte dht
     dht.begin();
     sensor_t sensor;
     dht.humidity().getSensor(&sensor);
-    delayMs = sensor.min_delay / 1000;
 
     ds.begin();
 
@@ -61,7 +60,7 @@ void SensorManager::readTask(void *params) {
             instance->temp = temps.get_median();
         }
 
-        vTaskDelay(pdMS_TO_TICKS(instance->delayMs));
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 
     // Have to call this or the system crashes when you reach the end bracket and then get scheduled.
