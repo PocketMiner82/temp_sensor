@@ -33,16 +33,16 @@
 #define SCREEN_ADDRESS 0x3C
 
 // the threshold at which the screen should be off by default (0-4095)
-#define SCREEN_OFF_THRESHOLD 1536
+#define SCREEN_OFF_THRESHOLD 512
 
 // the threshold at which the screen should always be on (0-4095)
-#define SCREEN_ALWAYS_ON_THRESHOLD 2048
+#define SCREEN_ALWAYS_ON_THRESHOLD 1024
 
 // the threshold at which to dim the screen (0-4095)
-#define SCREEN_DIM_THRESHOLD 2560
+#define SCREEN_DIM_THRESHOLD 1536
 
 // the threshold at which to undim the screen (0-4095)
-#define SCREEN_UNDIM_THRESHOLD 3072
+#define SCREEN_UNDIM_THRESHOLD 2048
 
 // the time in ms which the OLED should show temp+humidity
 #define TIME_SCREEN_ON 5000
@@ -76,6 +76,8 @@ Display *display;
     while (true) {
         const unsigned long currentMillis = millis();
         const unsigned long prValue = analogRead(PR_PIN);
+
+        Serial.println(prValue);
 
         // motion detected?
         if (digitalRead(PIR_PIN) == HIGH) {
