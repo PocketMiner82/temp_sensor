@@ -53,6 +53,9 @@
 // humidity offset (for calibration)
 #define HUM_OFFSET (-5)
 
+// uncomment if all display pixels should be turned on
+//#define DEBUG_ALL_ON
+
 
 SensorManager *sensors;
 
@@ -144,6 +147,13 @@ void setup() {
     } while (digitalRead(PIR_PIN) == HIGH);
 
     display = new Display(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_ADDRESS);
+
+#ifdef DEBUG_ALL_ON
+    display->clearDisplay();
+    display->display();
+    display->invertDisplay(true);
+    return;
+#endif
 
     xTaskCreate(displayTask,
         "displayTask",
