@@ -36,22 +36,22 @@
 #define SCREEN_OFF_THRESHOLD 512
 
 // the threshold at which the screen should always be on (0-4095)
-#define SCREEN_ALWAYS_ON_THRESHOLD 1024
+#define SCREEN_ALWAYS_ON_THRESHOLD 768
 
 // the threshold at which to dim the screen (0-4095)
-#define SCREEN_DIM_THRESHOLD 1536
+#define SCREEN_DIM_THRESHOLD 1280
 
 // the threshold at which to undim the screen (0-4095)
-#define SCREEN_UNDIM_THRESHOLD 2048
+#define SCREEN_UNDIM_THRESHOLD 1536
 
 // the time in ms which the OLED should show temp+humidity
 #define TIME_SCREEN_ON 5000
 
 // temperature offset (for calibration)
-#define TEMP_OFFSET (-1)
+#define TEMP_OFFSET (-2)
 
 // humidity offset (for calibration)
-#define HUM_OFFSET (-5)
+#define HUM_OFFSET 0
 
 // uncomment if all display pixels should be turned on
 //#define DEBUG_ALL_ON
