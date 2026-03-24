@@ -48,7 +48,7 @@
 #define TIME_SCREEN_ON 5000
 
 // temperature offset (for calibration)
-#define TEMP_OFFSET (-2)
+#define TEMP_OFFSET (-2.8)
 
 // humidity offset (for calibration)
 #define HUM_OFFSET 0
